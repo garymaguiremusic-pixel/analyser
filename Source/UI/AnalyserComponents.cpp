@@ -710,9 +710,9 @@ void HelpOverlay::paint (Graphics& g)
 
     const char* lines[] =
     {
-        "1.  Set your mix so it reads -10 dB peak / -17.5 dB RMS in your DAW.",
-        "2.  Fine-tune TRIM until IN PEAK and IN RMS turn green (only the analysis is trimmed;",
-        "     the audio passes through unchanged).",
+        "1.  Play your mix and turn TRIM until INPUT PEAK reads -10 dB and turns green.",
+        "     The LCD below it tells you how far to move TRIM. Only the analysis is trimmed;",
+        "     the audio passes through unchanged.",
         "3.  Play the loudest section. Each band shows its RMS against its target window:",
         "     GREEN = on target,  RED = too much energy,  BLUE = too little.",
         "4.  The bars grow up (too much) or down (too little) from the target line in the middle.",

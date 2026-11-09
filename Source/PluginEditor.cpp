@@ -52,11 +52,9 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
 
     addAndMakeVisible (spectrum);
     addAndMakeVisible (peakMeter);
-    addAndMakeVisible (rmsMeter);
     addAndMakeVisible (trimLcd);
     addAndMakeVisible (guideLcd);
-    peakMeter.setTooltip ("Sample peak of the trimmed input over the Response window. Reference: -10 dB");
-    rmsMeter.setTooltip ("RMS of the trimmed input over the Response window. Reference: -17.5 dB");
+    peakMeter.setTooltip ("Highest sample peak of the trimmed input over the Response window. Set TRIM so this reads -10 dB.");
 
     helpButton.onClick = [this] { helpOverlay.setVisible (true); helpOverlay.toFront (false); };
     helpButton.setTooltip ("Quick help");
@@ -82,10 +80,9 @@ void AnalyserPanel::resized()
     spectrum.setBounds (16, 68, 564, 354);
 
     trimKnob.setBounds (636, 82, 96, 96);
-    trimLcd.setBounds (606, 182, 156, 20);
-    peakMeter.setBounds (606, 210, 156, 28);
-    rmsMeter.setBounds (606, 240, 156, 28);
-    guideLcd.setBounds (606, 274, 156, 20);
+    trimLcd.setBounds (606, 186, 156, 20);
+    peakMeter.setBounds (606, 220, 156, 28);
+    guideLcd.setBounds (606, 266, 156, 20);
 
     responseKnob.setBounds (612, 334, 64, 80);
     rangeKnob.setBounds (692, 334, 64, 80);
@@ -111,11 +108,10 @@ void AnalyserPanel::refresh()
         curve.process (tapCopy.data(), s.sampleRate.load());
         spectrum.setCurve (curve);
 
-        const float peak = s.inputPeakDb.load(), rms = s.inputRmsDb.load();
+        const float peak = s.inputPeakDb.load();
         peakMeter.setLevel (peak);
-        rmsMeter.setLevel (rms);
 
-        const auto status = an::inputStatus (rms, an::kRefRmsDb);
+        const auto status = an::inputStatus (peak, an::kRefPeakDb);
         if (status == an::Status::Silent)
         {
             guideLcd.setContent ("INPUT", "NO SIGNAL");
@@ -128,7 +124,7 @@ void AnalyserPanel::refresh()
         }
         else
         {
-            guideLcd.setContent ("ADJUST TRIM", an::formatDb (an::kRefRmsDb - rms, true) + " dB");
+            guideLcd.setContent ("ADJUST TRIM", an::formatDb (an::kRefPeakDb - peak, true) + " dB");
             guideLcd.setValueColour (Colours::white);
         }
     }
@@ -230,10 +226,10 @@ void AnalyserPanel::paint (Graphics& g)
     CustomLookAndFeel::drawPanel (g, displayPanel,  "Display");
 
     // reference level line in the calibration panel
-    CustomLookAndFeel::drawSmallLabel (g, "Reference", { 606.0f, 64.0f, 70.0f, 12.0f }, Justification::centredLeft);
-    g.setFont (CustomLookAndFeel::uiFont (10.5f, true));
+    CustomLookAndFeel::drawSmallLabel (g, "Set Peak To", { 606.0f, 64.0f, 90.0f, 12.0f }, Justification::centredLeft);
+    g.setFont (CustomLookAndFeel::uiFont (11.5f, true));
     g.setColour (VirusColours::blue);
-    g.drawText ("-10 PK  /  -17.5 RMS", Rectangle<float> (662.0f, 64.0f, 100.0f, 12.0f), Justification::centredRight);
+    g.drawText ("-10.0 dB", Rectangle<float> (682.0f, 64.0f, 80.0f, 12.0f), Justification::centredRight);
 
     // --- bottom bar -----------------------------------------------------------------
     auto bar = Rectangle<float> (0.0f, (float) kBottomBarY, (float) kWidth, (float) (kHeight - kBottomBarY));

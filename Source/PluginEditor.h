@@ -41,8 +41,7 @@ private:
     SpectrumCurve curve;
     std::vector<float> tapCopy = std::vector<float> ((size_t) SpectrumCurve::kFftSize, 0.0f);
 
-    InputMeter peakMeter { "In Peak", an::kRefPeakDb };
-    InputMeter rmsMeter  { "In RMS",  an::kRefRmsDb };
+    InputMeter peakMeter { "Input Peak", an::kRefPeakDb };
     LcdDisplay trimLcd, guideLcd;
 
     HelpButton helpButton;

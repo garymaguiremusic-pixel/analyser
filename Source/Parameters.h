@@ -14,10 +14,9 @@ namespace an
     }
 
     //==========================================================================
-    // Reference input level. The band targets below assume the mix arrives at
-    // this level (after the Trim knob).
+    // Reference input level: the band targets below assume the mix peaks at
+    // -10 dB (after the Trim knob), which for the reference material is -17.5 dB RMS.
     inline constexpr float kRefPeakDb = -10.0f;
-    inline constexpr float kRefRmsDb  = -17.5f;
     inline constexpr float kRefToleranceDb = 0.5f;   // input counts as calibrated within +/- this
 
     //==========================================================================
