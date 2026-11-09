@@ -1,0 +1,72 @@
+name: Build plugin
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        shell: bash
+        run: cmake -B build -A x64 2>&1 | tee configure.log; exit ${PIPESTATUS[0]}
+
+      - name: Build VST3
+        shell: bash
+        run: cmake --build build --config Release --target Analyser_VST3 --parallel 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-logs
+          path: |
+            configure.log
+            build.log
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANALYSER-VST3-Windows-x64
+          path: build/Analyser_artefacts/Release/VST3/
+
+      - name: Zip VST3
+        shell: bash
+        run: |
+          mkdir out
+          cd build/Analyser_artefacts/Release/VST3
+          7z a -tzip "$GITHUB_WORKSPACE/out/ANALYSER-VST3-Windows-x64.zip" "ANALYSER.vst3"
+
+      - name: Upload zip for publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-windows
+          path: out/
+
+  # Publish the zip to a "builds" branch so it can be downloaded straight from GitHub.
+  publish:
+    needs: [windows]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: publish-windows
+          path: out
+      - name: Push builds branch
+        run: |
+          cd out
+          ls -l
+          git init -q -b builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add .
+          git commit -qm "Plugin builds ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" builds
