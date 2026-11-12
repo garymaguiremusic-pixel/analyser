@@ -140,6 +140,10 @@ public:
     void setCurve (const SpectrumCurve&);
     void setRangeDb (float halfRangeDb);
     void setFrozen (bool);
+    void setSoloed (const std::array<bool, an::kNumBands>&);
+
+    /** Where the band's solo button sits, in this component's coordinates. */
+    juce::Rectangle<int> getSoloButtonArea (int band) const;
 
     static juce::Colour colourFor (an::Status);
 
@@ -167,6 +171,7 @@ private:
 
     std::array<float, an::kNumBands> bandDb {};
     std::array<float, SpectrumCurve::kNumPoints> curveDb {};
+    std::array<bool, an::kNumBands> soloed {};
     bool hasCurve = false, frozen = false;
     float rangeDb = 12.0f;
 };

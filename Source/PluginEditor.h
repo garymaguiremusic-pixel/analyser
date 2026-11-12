@@ -36,6 +36,13 @@ private:
     VirusKnob responseKnob { VirusKnob::Size::Small, "Response" };
     VirusKnob rangeKnob    { VirusKnob::Size::Small, "Range" };
     juce::TextButton freezeButton { "Freeze" }, resetButton { "Reset" };
+    std::array<juce::TextButton, an::kNumBands> soloButtons;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;
+    juce::String soloText;
+
+    juce::TextButton midButton { "Mid" }, sideButton { "Side" };
+    std::unique_ptr<juce::ParameterAttachment> monitorAttachment;
+    void setMonitor (int mode);
 
     SpectrumDisplay spectrum;
     SpectrumCurve curve;

@@ -51,6 +51,11 @@ int main (int argc, char** argv)
             signal.setSample (ch, i, jlimit (-ceiling, ceiling, signal.getSample (ch, i)));
 
     AnalyserAudioProcessor proc;
+    if (argc > 3 && String (argv[3]) == "solo")
+    {
+        proc.apvts.getParameter (an::ParamIDs::solo[1])->setValueNotifyingHost (1.0f);
+        proc.apvts.getParameter (an::ParamIDs::monitor)->setValueNotifyingHost (0.5f);   // Mid
+    }
     proc.setPlayConfigDetails (2, 2, sr, block);
     proc.prepareToPlay (sr, block);
     MidiBuffer midi;

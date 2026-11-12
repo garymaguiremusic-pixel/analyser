@@ -73,6 +73,18 @@ private:
     juce::SmoothedValue<float> trimGain;
     std::atomic<float>* trimParam = nullptr;
     std::atomic<float>* responseParam = nullptr;
+    std::array<std::atomic<float>*, an::kNumBands> soloParams {};
+
+    // Band solo: the untrimmed input split with the same crossovers as the analysis
+    using LR = juce::dsp::LinkwitzRileyFilter<float>;
+    std::array<LR, an::kNumBands> soloHighPass, soloLowPass;
+    std::array<bool, an::kNumBands> soloUseHighPass {}, soloUseLowPass {};
+    std::array<juce::SmoothedValue<float>, an::kNumBands> soloGain;
+    juce::SmoothedValue<float> dryGain;
+
+    // Mid / Side listening
+    std::atomic<float>* monitorParam = nullptr;
+    juce::SmoothedValue<float> stereoGain, midGain, sideGain;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalyserAudioProcessor)
 };

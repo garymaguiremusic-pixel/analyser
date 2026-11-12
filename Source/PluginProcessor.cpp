@@ -12,6 +12,9 @@ AnalyserAudioProcessor::AnalyserAudioProcessor()
 {
     trimParam     = apvts.getRawParameterValue (an::ParamIDs::trim);
     responseParam = apvts.getRawParameterValue (an::ParamIDs::response);
+    for (int b = 0; b < an::kNumBands; ++b)
+        soloParams[(size_t) b] = apvts.getRawParameterValue (an::ParamIDs::solo[b]);
+    monitorParam = apvts.getRawParameterValue (an::ParamIDs::monitor);
 }
 
 AudioProcessorValueTreeState::ParameterLayout AnalyserAudioProcessor::createLayout()
@@ -33,6 +36,13 @@ AudioProcessorValueTreeState::ParameterLayout AnalyserAudioProcessor::createLayo
                                            AudioParameterFloatAttributes().withLabel ("dB")
                                                .withStringFromValueFunction ([] (float v, int) { return "+/-" + an::formatKnobValue (v) + " dB"; })));
 
+    for (int b = 0; b < an::kNumBands; ++b)
+        params.push_back (std::make_unique<AudioParameterBool> (ParameterID { an::ParamIDs::solo[b], 1 },
+                                                                String ("Solo ") + an::kBands[b].name, false));
+
+    params.push_back (std::make_unique<AudioParameterChoice> (ParameterID { an::ParamIDs::monitor, 1 }, "Listen",
+                                                              StringArray { "Stereo", "Mid", "Side" }, 0));
+
     return { params.begin(), params.end() };
 }
 
@@ -50,6 +60,36 @@ void AnalyserAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     work.setSize (2, std::max (1, samplesPerBlock));
     trimGain.reset (sampleRate, 0.05);
     trimGain.setCurrentAndTargetValue (Decibels::decibelsToGain (trimParam->load()));
+
+    const dsp::ProcessSpec spec { sampleRate, (uint32) std::max (1, samplesPerBlock), 2 };
+    const float maxCutoff = (float) sampleRate * 0.45f;
+    bool anySolo = false;
+    for (int b = 0; b < an::kNumBands; ++b)
+    {
+        const auto& band = an::kBands[b];
+        soloUseHighPass[(size_t) b] = band.loHz > 0.0f;
+        soloUseLowPass[(size_t) b]  = band.hiHz < maxCutoff || b < an::kNumBands - 1;
+        soloHighPass[(size_t) b].setType (LR::Type::highpass);
+        soloHighPass[(size_t) b].setCutoffFrequency (std::min (std::max (band.loHz, 10.0f), maxCutoff));
+        soloHighPass[(size_t) b].prepare (spec);
+        soloLowPass[(size_t) b].setType (LR::Type::lowpass);
+        soloLowPass[(size_t) b].setCutoffFrequency (std::min (band.hiHz, maxCutoff));
+        soloLowPass[(size_t) b].prepare (spec);
+
+        const bool on = soloParams[(size_t) b]->load() > 0.5f;
+        anySolo = anySolo || on;
+        soloGain[(size_t) b].reset (sampleRate, 0.02);
+        soloGain[(size_t) b].setCurrentAndTargetValue (on ? 1.0f : 0.0f);
+    }
+    dryGain.reset (sampleRate, 0.02);
+    dryGain.setCurrentAndTargetValue (anySolo ? 0.0f : 1.0f);
+
+    const int monitor = (int) monitorParam->load();
+    for (auto* sv : { &stereoGain, &midGain, &sideGain })
+        sv->reset (sampleRate, 0.02);
+    stereoGain.setCurrentAndTargetValue (monitor == an::MonitorStereo ? 1.0f : 0.0f);
+    midGain.setCurrentAndTargetValue (monitor == an::MonitorMid ? 1.0f : 0.0f);
+    sideGain.setCurrentAndTargetValue (monitor == an::MonitorSide ? 1.0f : 0.0f);
 }
 
 void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
@@ -98,6 +138,71 @@ void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
         pos = (pos + 1) & (Shared::kTapSize - 1);
     }
     shared.tapWritePos.store (pos, std::memory_order_release);
+
+    // Band solo on the output (after the analysis, which always sees the full mix).
+    // The band filters run all the time so switching solos is click-free.
+    bool anySolo = false;
+    for (int b = 0; b < an::kNumBands; ++b)
+    {
+        const bool on = soloParams[(size_t) b]->load() > 0.5f;
+        anySolo = anySolo || on;
+        soloGain[(size_t) b].setTargetValue (on ? 1.0f : 0.0f);
+    }
+    dryGain.setTargetValue (anySolo ? 0.0f : 1.0f);
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float dry = dryGain.getNextValue();
+        std::array<float, an::kNumBands> gains {};
+        for (int b = 0; b < an::kNumBands; ++b)
+            gains[(size_t) b] = soloGain[(size_t) b].getNextValue();
+
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            const float x = buffer.getSample (ch, i);
+            float y = dry * x;
+            for (int b = 0; b < an::kNumBands; ++b)
+            {
+                float v = x;
+                if (soloUseHighPass[(size_t) b]) v = soloHighPass[(size_t) b].processSample (ch, v);
+                if (soloUseLowPass[(size_t) b])  v = soloLowPass[(size_t) b].processSample (ch, v);
+                y += gains[(size_t) b] * v;
+            }
+            buffer.setSample (ch, i, y);
+        }
+    }
+
+    for (int b = 0; b < an::kNumBands; ++b)
+    {
+        soloHighPass[(size_t) b].snapToZero();
+        soloLowPass[(size_t) b].snapToZero();
+    }
+
+    // Mid / Side listening (stereo only): mid = (L+R)/2 and side = (L-R)/2, each on both speakers.
+    const int monitor = (int) monitorParam->load();
+    stereoGain.setTargetValue (monitor == an::MonitorStereo ? 1.0f : 0.0f);
+    midGain.setTargetValue (monitor == an::MonitorMid ? 1.0f : 0.0f);
+    sideGain.setTargetValue (monitor == an::MonitorSide ? 1.0f : 0.0f);
+
+    if (numChannels == 2 && (monitor != an::MonitorStereo || stereoGain.isSmoothing()))
+    {
+        auto* l = buffer.getWritePointer (0);
+        auto* r = buffer.getWritePointer (1);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float gs = stereoGain.getNextValue(), gm = midGain.getNextValue(), gd = sideGain.getNextValue();
+            const float mid = 0.5f * (l[i] + r[i]), side = 0.5f * (l[i] - r[i]);
+            const float common = gm * mid + gd * side;
+            l[i] = gs * l[i] + common;
+            r[i] = gs * r[i] + common;
+        }
+    }
+    else
+    {
+        stereoGain.skip (numSamples);
+        midGain.skip (numSamples);
+        sideGain.skip (numSamples);
+    }
 }
 
 void AnalyserAudioProcessor::Shared::copyLatest (float* dest, int numSamples) const noexcept

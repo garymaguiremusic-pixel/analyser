@@ -51,6 +51,34 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
     addAndMakeVisible (resetButton);
 
     addAndMakeVisible (spectrum);
+
+    // Mid / Side listen buttons (one at a time; both off = normal stereo)
+    midButton.setTooltip ("Listen to the Mid (L+R) only. Click again for normal stereo. The meters still measure the full mix.");
+    sideButton.setTooltip ("Listen to the Side (L-R) only. Click again for normal stereo. The meters still measure the full mix.");
+    midButton.onClick  = [this] { setMonitor (midButton.getToggleState()  ? an::MonitorStereo : an::MonitorMid); };
+    sideButton.onClick = [this] { setMonitor (sideButton.getToggleState() ? an::MonitorStereo : an::MonitorSide); };
+    addAndMakeVisible (midButton);
+    addAndMakeVisible (sideButton);
+    monitorAttachment = std::make_unique<ParameterAttachment> (*processor.apvts.getParameter (an::ParamIDs::monitor),
+        [this] (float v)
+        {
+            const int mode = roundToInt (v);
+            midButton.setToggleState (mode == an::MonitorMid, dontSendNotification);
+            sideButton.setToggleState (mode == an::MonitorSide, dontSendNotification);
+        });
+    monitorAttachment->sendInitialUpdate();
+
+    for (int b = 0; b < an::kNumBands; ++b)
+    {
+        auto& button = soloButtons[(size_t) b];
+        button.setButtonText ("S");
+        button.setClickingTogglesState (true);
+        button.setTooltip (String ("Solo ") + an::kBands[b].name + " (" + an::kBands[b].rangeText
+                           + ") - listen to this band only. The meters still measure the full mix.");
+        addAndMakeVisible (button);
+        buttonAttachments.push_back (std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (
+            processor.apvts, an::ParamIDs::solo[b], button));
+    }
     addAndMakeVisible (peakMeter);
     addAndMakeVisible (trimLcd);
     addAndMakeVisible (guideLcd);
@@ -66,6 +94,11 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
     startTimerHz (30);
 }
 
+void AnalyserPanel::setMonitor (int mode)
+{
+    monitorAttachment->setValueAsCompleteGesture ((float) mode);
+}
+
 AnalyserPanel::~AnalyserPanel()
 {
     stopTimer();
@@ -74,10 +107,14 @@ AnalyserPanel::~AnalyserPanel()
 
 void AnalyserPanel::resized()
 {
+    midButton.setBounds (452, 6, 64, 22);
+    sideButton.setBounds (522, 6, 64, 22);
     freezeButton.setBounds (616, 6, 72, 22);
     resetButton.setBounds (696, 6, 72, 22);
 
     spectrum.setBounds (16, 68, 564, 354);
+    for (int b = 0; b < an::kNumBands; ++b)
+        soloButtons[(size_t) b].setBounds (spectrum.getSoloButtonArea (b) + spectrum.getPosition());
 
     trimKnob.setBounds (636, 82, 96, 96);
     trimLcd.setBounds (606, 186, 156, 20);
@@ -130,6 +167,23 @@ void AnalyserPanel::refresh()
     }
 
     trimLcd.setContent ("TRIM", signedDb (trimKnob.getValue()));
+
+    std::array<bool, an::kNumBands> soloed {};
+    StringArray soloNames;
+    for (int b = 0; b < an::kNumBands; ++b)
+        if ((soloed[(size_t) b] = soloButtons[(size_t) b].getToggleState()))
+            soloNames.add (String (an::kBands[b].name).toUpperCase());
+    spectrum.setSoloed (soloed);
+
+    String newSoloText = soloNames.isEmpty() ? String() : "SOLO:  " + soloNames.joinIntoString ("  +  ");
+    if (midButton.getToggleState() || sideButton.getToggleState())
+        newSoloText = (midButton.getToggleState() ? "LISTEN:  MID" : "LISTEN:  SIDE")
+                    + (newSoloText.isEmpty() ? String() : "     " + newSoloText);
+    if (newSoloText != soloText)
+    {
+        soloText = newSoloText;
+        repaint (0, kBottomBarY, kWidth, kHeight - kBottomBarY);
+    }
     spectrum.setRangeDb ((float) rangeKnob.getValue());
 }
 
@@ -219,6 +273,7 @@ void AnalyserPanel::paint (Graphics& g)
     g.drawHorizontalLine (kTopStripH, 0.0f, (float) kWidth);
 
     drawWordmark (g, { 14.0f, 0.0f, 260.0f, (float) kTopStripH });
+    CustomLookAndFeel::drawSmallLabel (g, "Listen", { 390.0f, 8.0f, 56.0f, 19.0f }, Justification::centredRight);
 
     // --- panels ---------------------------------------------------------------------
     CustomLookAndFeel::drawPanel (g, spectrumPanel, "Spectrum Balance");
@@ -250,8 +305,8 @@ void AnalyserPanel::paint (Graphics& g)
     auto inset = bar.reduced (90.0f, 7.0f);
     CustomLookAndFeel::drawInsetBox (g, inset, 3.0f);
     g.setFont (CustomLookAndFeel::uiFont (13.0f, true));
-    g.setColour (Colour (0xffc8cdd2));
-    g.drawText ("MIX ANALYSER", inset, Justification::centred);
+    g.setColour (soloText.isEmpty() ? Colour (0xffc8cdd2) : VirusColours::blue);
+    g.drawText (soloText.isEmpty() ? String ("MIX ANALYSER") : soloText, inset, Justification::centred);
 }
 
 //==============================================================================

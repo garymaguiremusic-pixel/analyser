@@ -22,7 +22,9 @@ The GUI uses the same procedurally drawn style as VIRUS DELAY.
 | High | 7680 - 20000 Hz | -33.0 to -35.0 dB |
 
 **Response** sets the RMS window (1-30 s), **Range** the dB shown above/below the target line.
-**Freeze** holds the readings, **Reset** clears the RMS history. Knobs move in 1.0 steps (drag or
+**Freeze** holds the readings, **Reset** clears the RMS history. **S** on each band solos it (solo
+several to combine), and **Mid** / **Side** (top bar) let you hear the mid or side signal on its own.
+Solo and Mid/Side only change what you hear: the meters always measure the full mix. Knobs move in 1.0 steps (drag or
 mouse wheel; Shift = 0.1, double-click = default). The window is resizable (70-250 %).
 
 ## Download

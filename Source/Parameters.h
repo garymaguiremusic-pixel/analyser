@@ -11,12 +11,15 @@ namespace an
         inline constexpr const char* trim     = "trim";      // input calibration trim, dB
         inline constexpr const char* response = "response";  // RMS integration window, seconds
         inline constexpr const char* range    = "range";     // display range above/below the target line, dB
+        inline constexpr const char* monitor  = "monitor";   // listen: 0 = stereo, 1 = mid, 2 = side (output only)
     }
 
     //==========================================================================
     // Reference input level: the band targets below assume the mix peaks at
     // -10 dB (after the Trim knob), which for the reference material is -17.5 dB RMS.
     inline constexpr float kRefPeakDb = -10.0f;
+
+    enum Monitor { MonitorStereo = 0, MonitorMid, MonitorSide };
     inline constexpr float kRefToleranceDb = 0.5f;   // input counts as calibrated within +/- this
 
     //==========================================================================
@@ -42,6 +45,12 @@ namespace an
         { "High Mid", "1.9k - 7.7k",   1920.0f, 7680.0f,  -28.0f, -31.0f },
         { "High",     "7.7k - 20k",    7680.0f, 20000.0f, -33.0f, -35.0f },
     };
+
+    namespace ParamIDs
+    {
+        // Band solo switches (audio output only; the analysis always measures the full mix)
+        inline constexpr const char* solo[kNumBands] = { "solo1", "solo2", "solo3", "solo4", "solo5" };
+    }
 
     //==========================================================================
     inline constexpr float kSilenceDb = -90.0f;   // below this a reading shows "--"

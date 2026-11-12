@@ -330,6 +330,22 @@ void SpectrumDisplay::setCurve (const SpectrumCurve& c)
 void SpectrumDisplay::setRangeDb (float r)    { if (r != rangeDb) { rangeDb = r; repaint(); } }
 void SpectrumDisplay::setFrozen (bool f)      { if (f != frozen)  { frozen = f;  repaint(); } }
 
+void SpectrumDisplay::setSoloed (const std::array<bool, an::kNumBands>& s)
+{
+    if (s != soloed)
+    {
+        soloed = s;
+        repaint();
+    }
+}
+
+Rectangle<int> SpectrumDisplay::getSoloButtonArea (int b) const
+{
+    const auto geo = geometry();
+    const float x1 = geo.bandRight (b);
+    return Rectangle<float> (x1 - 1.5f - 3.0f - 15.0f, geo.readouts.getY() + 3.5f, 15.0f, 13.0f).toNearestInt();
+}
+
 String SpectrumDisplay::getTooltip()
 {
     return "Each band's RMS against its target window.\n"
@@ -654,13 +670,14 @@ void SpectrumDisplay::paintReadouts (Graphics& g, const Geometry& geo)
         auto cell = Rectangle<float> (x0, area.getY(), x1 - x0, area.getHeight()).reduced (1.5f, 0.0f);
         const auto status = an::bandStatus (b, bandDb[(size_t) b]);
         const auto colour = colourFor (status);
+        const bool anySolo = std::find (soloed.begin(), soloed.end(), true) != soloed.end();
 
         // cell background with a coloured top edge
         g.setGradientFill (ColourGradient (Colour (0xff1a1e22), 0.0f, cell.getY(), Colour (0xff101316), 0.0f, cell.getBottom(), false));
         g.fillRoundedRectangle (cell, 3.0f);
         g.setColour (colour.withAlpha (status == an::Status::Silent ? 0.4f : 0.9f));
         g.fillRoundedRectangle (cell.withHeight (2.5f), 1.0f);
-        g.setColour (VirusColours::bevelDark);
+        g.setColour (soloed[(size_t) b] ? VirusColours::blue.withAlpha (0.8f) : VirusColours::bevelDark);
         g.drawRoundedRectangle (cell, 3.0f, 1.0f);
 
         auto row = [&] (int r) { return Rectangle<float> (cell.getX() + 2.0f, area.getY() + rows[r], cell.getWidth() - 4.0f, rows[r + 1] - rows[r]).toNearestInt(); };
@@ -680,6 +697,12 @@ void SpectrumDisplay::paintReadouts (Graphics& g, const Geometry& geo)
         g.setFont (CustomLookAndFeel::uiFont (9.0f, true));
         g.setColour (Colour (0xff8d949b));
         g.drawFittedText (String (spec.targetTopDb, 1) + " / " + String (spec.targetBottomDb, 1), row (3), Justification::centred, 1, 0.7f);
+
+        if (anySolo && ! soloed[(size_t) b])
+        {
+            g.setColour (Colours::black.withAlpha (0.35f));
+            g.fillRoundedRectangle (cell, 3.0f);
+        }
     }
 }
 
@@ -719,6 +742,9 @@ void HelpOverlay::paint (Graphics& g)
         "",
         "RESPONSE: RMS window in seconds.  RANGE: dB shown above/below the target line.",
         "FREEZE holds the readings.  RESET clears the RMS history.",
+        "S (on each band) solos that band so you can hear it; solo several to combine them.",
+        "MID / SIDE (top) lets you hear the mid or side signal on its own; works with the solos.",
+        "     Solo and Mid/Side change only what you hear - the meters always measure the full mix.",
         "Knobs: drag or scroll = 1.0 steps, Shift = 0.1 steps, double-click = default.",
         "Drag the bottom-right corner to resize the window.",
     };
