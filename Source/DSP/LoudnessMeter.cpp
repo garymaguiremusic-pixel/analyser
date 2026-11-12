@@ -57,7 +57,17 @@ namespace an
         for (auto& r : rmsRing) r.fill (0.0f);
         rmsPos = rmsFilled = 0;
         rmsMaxDb = -120.0f;
+        rmsHoldDb = { -120.0f, -120.0f };
         readings = {};
+    }
+
+    void LoudnessMeter::resetHolds()
+    {
+        std::fill (histEnergy.begin(), histEnergy.end(), 0.0);
+        std::fill (histCount.begin(), histCount.end(), 0);
+        rmsMaxDb = -120.0f;
+        rmsHoldDb = { -120.0f, -120.0f };
+        readings.integrated = readings.rmsL = readings.rmsR = readings.rmsMax = -120.0f;
     }
 
     void LoudnessMeter::setRmsResolutionMs (int ms) noexcept
@@ -92,9 +102,6 @@ namespace an
                 finishLoudnessBlock();
         }
 
-        // Mono input: show the same RMS on both sides
-        if (nch == 1)
-            readings.rmsR = readings.rmsL;
     }
 
     void LoudnessMeter::finishRmsChunk()
@@ -106,9 +113,16 @@ namespace an
         chunkPos = 0;
         chunkSum.fill (0.0);
 
-        readings.rmsL = rmsDb (0);
-        readings.rmsR = channels > 1 ? rmsDb (1) : readings.rmsL;
-        rmsMaxDb = std::max (rmsMaxDb, std::max (readings.rmsL, readings.rmsR));
+        const float nowL = rmsDb (0);
+        const float nowR = channels > 1 ? rmsDb (1) : nowL;
+        if (rmsFilled >= rmsWindowMs)   // hold only full-window readings
+        {
+            rmsHoldDb[0] = std::max (rmsHoldDb[0], nowL);
+            rmsHoldDb[1] = std::max (rmsHoldDb[1], nowR);
+        }
+        readings.rmsL = rmsHoldDb[0];
+        readings.rmsR = rmsHoldDb[1];
+        rmsMaxDb = std::max (rmsHoldDb[0], rmsHoldDb[1]);
         readings.rmsMax = rmsMaxDb;
     }
 

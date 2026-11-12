@@ -36,6 +36,8 @@ on that channel:
   loudness meter follows (K-weighting; 400 ms, 3 s, and gated integrated with -70 LUFS absolute and
   -10 LU relative gates). Verified against the EBU Tech 3341 test cases.
 * **RMS L / R / Max**: unweighted RMS over the **RMS Res** window (1-1000 ms, default 300 ms).
+  RMS L and R hold their highest value; **click the Loudness meter** to reset all held readings
+  (RMS L / R / Max and Integrated).
   **AES17** adds +3 dB. Set both to match Cubase's Meter Settings (Resolution, RMS AES17).
 * **Reset** clears Integrated and RMS Max.
 

@@ -58,6 +58,7 @@ public:
         std::atomic<float> momentary { -120.0f }, shortTerm { -120.0f }, integrated { -120.0f };
         std::atomic<float> rmsL { -120.0f }, rmsR { -120.0f }, rmsMax { -120.0f };
         std::atomic<bool>  resetRequested { false };
+        std::atomic<bool>  loudnessHoldResetRequested { false };   // click on the Loudness meter
         std::atomic<double> sampleRate { 44100.0 };
         std::atomic<int>   editorWidth { 0 };
 

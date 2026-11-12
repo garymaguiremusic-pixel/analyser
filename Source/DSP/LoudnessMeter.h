@@ -22,6 +22,7 @@ namespace an
         RMS (per channel, unweighted):
           - mean square over the last N ms (N = Resolution, 1..1000), 1 ms granularity
           - AES17 adds +3.01 dB (a full-scale sine then reads 0 dB RMS)
+          - RMS L / R hold their highest value until resetHolds()
     */
     class LoudnessMeter
     {
@@ -34,6 +35,10 @@ namespace an
 
         void prepare (double sampleRate, int numChannels);
         void reset();
+
+        /** Clears the held values (RMS L/R hold, RMS Max, Integrated) without
+            disturbing the running windows, so readings rebuild straight away. */
+        void resetHolds();
         void setRmsResolutionMs (int ms) noexcept;
         void setAes17 (bool on) noexcept { aes17 = on; }
 
@@ -85,6 +90,7 @@ namespace an
         std::array<std::array<float, 1000>, 2> rmsRing {};
         int rmsPos = 0, rmsFilled = 0;
         float rmsMaxDb = -120.0f;
+        std::array<float, 2> rmsHoldDb { -120.0f, -120.0f };
 
         Readings readings;
     };

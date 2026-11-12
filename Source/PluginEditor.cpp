@@ -48,6 +48,7 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
     buttonAttachments.push_back (std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (
         processor.apvts, an::ParamIDs::aes17, aes17Button));
     addAndMakeVisible (loudnessDisplay);
+    loudnessDisplay.onClick = [this] { processor.shared.loudnessHoldResetRequested.store (true); };
 
     freezeButton.setClickingTogglesState (true);
     freezeButton.setTooltip ("Hold the current readings");

@@ -196,6 +196,9 @@ public:
     LoudnessDisplay();
     void setValues (const Values&);
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+    std::function<void()> onClick;   // click anywhere = reset the held readings
 
 private:
     Values values;

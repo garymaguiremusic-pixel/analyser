@@ -129,6 +129,9 @@ void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
             work.setSample (ch, i, buffer.getSample (ch, i) * g);
     }
 
+    if (shared.loudnessHoldResetRequested.exchange (false))
+        loudness.resetHolds();
+
     // Loudness / RMS on the untrimmed input, before solo and Mid/Side
     loudness.setRmsResolutionMs ((int) std::round (rmsResolutionParam->load()));
     loudness.setAes17 (aes17Param->load() > 0.5f);

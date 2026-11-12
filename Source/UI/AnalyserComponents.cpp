@@ -713,7 +713,16 @@ LoudnessDisplay::LoudnessDisplay()
 {
     setTooltip ("LUFS: ITU-R BS.1770-4 / EBU R128 (K-weighted; momentary 400 ms, short-term 3 s, integrated gated).\n"
                 "RMS: unweighted, over the RMS Res window, +3 dB with AES17.\n"
-                "Measured on the plugin's input before Trim, so it matches your DAW's meter. RESET clears Integrated and RMS Max.");
+                "RMS L / R hold their highest value.\n"
+                "CLICK the meter to reset the held readings (RMS L / R / Max and Integrated).\n"
+                "Measured on the plugin's input before Trim, so it matches your DAW's meter.");
+    setMouseCursor (MouseCursor::PointingHandCursor);
+}
+
+void LoudnessDisplay::mouseDown (const MouseEvent&)
+{
+    if (onClick)
+        onClick();
 }
 
 void LoudnessDisplay::setValues (const Values& v)
@@ -733,8 +742,8 @@ void LoudnessDisplay::paint (Graphics& g)
         { "Momentary",  values.momentary,  "LUFS", true },
         { "Short-Term", values.shortTerm,  "LUFS", true },
         { "Integrated", values.integrated, "LUFS", true },
-        { "RMS L",      values.rmsL,       "dB",   false },
-        { "RMS R",      values.rmsR,       "dB",   false },
+        { "RMS L",      values.rmsL,       "dB  HOLD", false },
+        { "RMS R",      values.rmsR,       "dB  HOLD", false },
         { "RMS Max",    values.rmsMax,     "dB",   false },
     };
 
@@ -797,6 +806,7 @@ void HelpOverlay::paint (Graphics& g)
         "",
         "RESPONSE: band RMS window in seconds.  RANGE: dB shown above/below the target line.",
         "LOUDNESS: LUFS as Cubase (EBU R128). RMS RES + AES17: set these like Cubase's Meter Settings.",
+        "     RMS L / R hold their highest value: click the Loudness meter to reset all held readings.",
         "FREEZE holds the readings.  RESET clears the RMS history.",
         "S (on each band) solos that band so you can hear it; solo several to combine them.",
         "MID / SIDE (top) lets you hear the mid or side signal on its own; works with the solos.",
