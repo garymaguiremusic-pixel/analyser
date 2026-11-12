@@ -15,6 +15,8 @@ AnalyserAudioProcessor::AnalyserAudioProcessor()
     for (int b = 0; b < an::kNumBands; ++b)
         soloParams[(size_t) b] = apvts.getRawParameterValue (an::ParamIDs::solo[b]);
     monitorParam = apvts.getRawParameterValue (an::ParamIDs::monitor);
+    rmsResolutionParam = apvts.getRawParameterValue (an::ParamIDs::rmsResolution);
+    aes17Param = apvts.getRawParameterValue (an::ParamIDs::aes17);
 }
 
 AudioProcessorValueTreeState::ParameterLayout AnalyserAudioProcessor::createLayout()
@@ -40,6 +42,11 @@ AudioProcessorValueTreeState::ParameterLayout AnalyserAudioProcessor::createLayo
         params.push_back (std::make_unique<AudioParameterBool> (ParameterID { an::ParamIDs::solo[b], 1 },
                                                                 String ("Solo ") + an::kBands[b].name, false));
 
+    params.push_back (std::make_unique<P> (ParameterID { an::ParamIDs::rmsResolution, 1 }, "RMS Resolution",
+                                           NormalisableRange<float> (1.0f, 1000.0f, 0.1f), 300.0f,
+                                           AudioParameterFloatAttributes().withLabel ("ms")
+                                               .withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v)) + " ms"; })));
+    params.push_back (std::make_unique<AudioParameterBool> (ParameterID { an::ParamIDs::aes17, 1 }, "RMS AES17", false));
     params.push_back (std::make_unique<AudioParameterChoice> (ParameterID { an::ParamIDs::monitor, 1 }, "Listen",
                                                               StringArray { "Stereo", "Mid", "Side" }, 0));
 
@@ -57,6 +64,7 @@ void AnalyserAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 {
     shared.sampleRate.store (sampleRate);
     meter.prepare (sampleRate, getTotalNumInputChannels());
+    loudness.prepare (sampleRate, getTotalNumInputChannels());
     work.setSize (2, std::max (1, samplesPerBlock));
     trimGain.reset (sampleRate, 0.05);
     trimGain.setCurrentAndTargetValue (Decibels::decibelsToGain (trimParam->load()));
@@ -104,7 +112,10 @@ void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
         return;
 
     if (shared.resetRequested.exchange (false))
+    {
         meter.reset();
+        loudness.reset();
+    }
 
     if (work.getNumSamples() < numSamples)
         work.setSize (2, numSamples, false, false, true);
@@ -116,6 +127,20 @@ void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
         const float g = trimGain.getNextValue();
         for (int ch = 0; ch < numChannels; ++ch)
             work.setSample (ch, i, buffer.getSample (ch, i) * g);
+    }
+
+    // Loudness / RMS on the untrimmed input, before solo and Mid/Side
+    loudness.setRmsResolutionMs ((int) std::round (rmsResolutionParam->load()));
+    loudness.setAes17 (aes17Param->load() > 0.5f);
+    loudness.process (buffer.getArrayOfReadPointers(), numChannels, numSamples);
+    {
+        const auto& lr = loudness.getReadings();
+        shared.momentary.store (lr.momentary);
+        shared.shortTerm.store (lr.shortTerm);
+        shared.integrated.store (lr.integrated);
+        shared.rmsL.store (lr.rmsL);
+        shared.rmsR.store (lr.rmsR);
+        shared.rmsMax.store (lr.rmsMax);
     }
 
     meter.setWindowSeconds (responseParam->load());

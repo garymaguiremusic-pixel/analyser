@@ -5,6 +5,7 @@
 #include <atomic>
 #include "Parameters.h"
 #include "DSP/BandMeter.h"
+#include "DSP/LoudnessMeter.h"
 
 //==============================================================================
 /**
@@ -52,6 +53,10 @@ public:
         std::array<std::atomic<float>, an::kNumBands> bandRmsDb;
         std::atomic<float> inputRmsDb  { -120.0f };
         std::atomic<float> inputPeakDb { -120.0f };
+
+        // Loudness of the untrimmed input (as Cubase would meter it)
+        std::atomic<float> momentary { -120.0f }, shortTerm { -120.0f }, integrated { -120.0f };
+        std::atomic<float> rmsL { -120.0f }, rmsR { -120.0f }, rmsMax { -120.0f };
         std::atomic<bool>  resetRequested { false };
         std::atomic<double> sampleRate { 44100.0 };
         std::atomic<int>   editorWidth { 0 };
@@ -69,6 +74,9 @@ public:
 
 private:
     an::BandMeter meter;
+    an::LoudnessMeter loudness;
+    std::atomic<float>* rmsResolutionParam = nullptr;
+    std::atomic<float>* aes17Param = nullptr;
     juce::AudioBuffer<float> work;
     juce::SmoothedValue<float> trimGain;
     std::atomic<float>* trimParam = nullptr;

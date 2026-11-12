@@ -5,7 +5,7 @@ using namespace juce;
 namespace
 {
     constexpr int kWidth = AnalyserPanel::kBaseWidth, kHeight = AnalyserPanel::kBaseHeight;
-    constexpr int kTopStripH = 34, kBottomBarY = 438;
+    constexpr int kTopStripH = 34, kBottomBarY = 524;
 
     String signedDb (double v) { return (v > 0.0 ? "+" : "") + an::formatKnobValue (v) + " dB"; }
 }
@@ -21,11 +21,13 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
     spectrumPanel = { 8.0f, 42.0f, 580.0f, 388.0f };
     calPanel      = { 596.0f, 42.0f, 176.0f, 262.0f };
     displayPanel  = { 596.0f, 310.0f, 176.0f, 120.0f };
+    loudnessPanel = { 8.0f, 438.0f, 764.0f, 80.0f };
 
     auto& apvts = processor.apvts;
     const std::pair<VirusKnob*, const char*> knobs[] =
     {
         { &trimKnob, an::ParamIDs::trim }, { &responseKnob, an::ParamIDs::response }, { &rangeKnob, an::ParamIDs::range },
+        { &rmsResKnob, an::ParamIDs::rmsResolution },
     };
     for (auto& [knob, id] : knobs)
     {
@@ -37,6 +39,15 @@ AnalyserPanel::AnalyserPanel (AnalyserAudioProcessor& p) : processor (p)
     trimKnob.describeValue     = [] (double v) { return signedDb (v); };
     responseKnob.describeValue = [] (double v) { return an::formatKnobValue (v) + " s"; };
     rangeKnob.describeValue    = [] (double v) { return "+/-" + an::formatKnobValue (v) + " dB"; };
+    rmsResKnob.describeValue   = [] (double v) { return an::formatKnobValue (v) + " ms"; };
+
+    // Loudness section: match these to Cubase's Meter Settings (Resolution + AES17)
+    aes17Button.setClickingTogglesState (true);
+    aes17Button.setTooltip ("RMS AES17: adds +3 dB to the RMS readings (a full-scale sine reads 0 dB RMS). Match Cubase's meter setting.");
+    addAndMakeVisible (aes17Button);
+    buttonAttachments.push_back (std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (
+        processor.apvts, an::ParamIDs::aes17, aes17Button));
+    addAndMakeVisible (loudnessDisplay);
 
     freezeButton.setClickingTogglesState (true);
     freezeButton.setTooltip ("Hold the current readings");
@@ -124,6 +135,10 @@ void AnalyserPanel::resized()
     responseKnob.setBounds (612, 334, 64, 80);
     rangeKnob.setBounds (692, 334, 64, 80);
 
+    loudnessDisplay.setBounds (16, 462, 600, 50);
+    rmsResKnob.setBounds (628, 456, 60, 60);
+    aes17Button.setBounds (698, 474, 64, 22);
+
     helpButton.setBounds (kWidth - 34, kBottomBarY + 5, 22, 22);
     helpOverlay.setBounds (getLocalBounds());
 }
@@ -185,6 +200,18 @@ void AnalyserPanel::refresh()
         repaint (0, kBottomBarY, kWidth, kHeight - kBottomBarY);
     }
     spectrum.setRangeDb ((float) rangeKnob.getValue());
+
+    if (! frozen)
+    {
+        LoudnessDisplay::Values v;
+        v.momentary  = s.momentary.load();
+        v.shortTerm  = s.shortTerm.load();
+        v.integrated = s.integrated.load();
+        v.rmsL = s.rmsL.load();
+        v.rmsR = s.rmsR.load();
+        v.rmsMax = s.rmsMax.load();
+        loudnessDisplay.setValues (v);
+    }
 }
 
 //==============================================================================
@@ -279,6 +306,7 @@ void AnalyserPanel::paint (Graphics& g)
     CustomLookAndFeel::drawPanel (g, spectrumPanel, "Spectrum Balance");
     CustomLookAndFeel::drawPanel (g, calPanel,      "Input Calibration");
     CustomLookAndFeel::drawPanel (g, displayPanel,  "Display");
+    CustomLookAndFeel::drawPanel (g, loudnessPanel, "Loudness  (EBU R128 / BS.1770)   +   RMS");
 
     // reference level line in the calibration panel
     CustomLookAndFeel::drawSmallLabel (g, "Set Peak To", { 606.0f, 64.0f, 90.0f, 12.0f }, Justification::centredLeft);

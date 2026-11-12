@@ -707,6 +707,61 @@ void SpectrumDisplay::paintReadouts (Graphics& g, const Geometry& geo)
 }
 
 //==============================================================================
+// LoudnessDisplay
+//==============================================================================
+LoudnessDisplay::LoudnessDisplay()
+{
+    setTooltip ("LUFS: ITU-R BS.1770-4 / EBU R128 (K-weighted; momentary 400 ms, short-term 3 s, integrated gated).\n"
+                "RMS: unweighted, over the RMS Res window, +3 dB with AES17.\n"
+                "Measured on the plugin's input before Trim, so it matches your DAW's meter. RESET clears Integrated and RMS Max.");
+}
+
+void LoudnessDisplay::setValues (const Values& v)
+{
+    if (v != values)
+    {
+        values = v;
+        repaint();
+    }
+}
+
+void LoudnessDisplay::paint (Graphics& g)
+{
+    struct Cell { const char* caption; float value; const char* unit; bool lufs; };
+    const Cell cells[] =
+    {
+        { "Momentary",  values.momentary,  "LUFS", true },
+        { "Short-Term", values.shortTerm,  "LUFS", true },
+        { "Integrated", values.integrated, "LUFS", true },
+        { "RMS L",      values.rmsL,       "dB",   false },
+        { "RMS R",      values.rmsR,       "dB",   false },
+        { "RMS Max",    values.rmsMax,     "dB",   false },
+    };
+
+    const auto b = getLocalBounds().toFloat();
+    const float gap = 6.0f, w = (b.getWidth() - gap * 5.0f) / 6.0f;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        auto cell = Rectangle<float> (b.getX() + i * (w + gap), b.getY(), w, b.getHeight());
+        CustomLookAndFeel::drawInsetBox (g, cell, 3.0f);
+
+        auto inner = cell.reduced (6.0f, 3.0f);
+        CustomLookAndFeel::drawSmallLabel (g, cells[i].caption, inner.removeFromTop (13.0f), Justification::centred);
+
+        const bool silent = cells[i].value <= (cells[i].lufs ? -70.0f : an::kSilenceDb);
+        const auto valueArea = inner.removeFromTop (22.0f);
+        g.setFont (CustomLookAndFeel::uiFont (18.0f, true));
+        g.setColour (silent ? Colour (0xff6a7178) : (i == 2 ? VirusColours::blue : Colour (0xffeef2f5)));
+        g.drawText (silent ? String ("--") : an::formatDb (cells[i].value), valueArea, Justification::centred);
+
+        g.setFont (CustomLookAndFeel::uiFont (8.5f, true));
+        g.setColour (Colour (0xff7d858d));
+        g.drawText (cells[i].unit, inner, Justification::centred);
+    }
+}
+
+//==============================================================================
 // Help
 //==============================================================================
 void HelpButton::paintButton (Graphics& g, bool isHighlighted, bool isDown)
@@ -740,7 +795,8 @@ void HelpOverlay::paint (Graphics& g)
         "     GREEN = on target,  RED = too much energy,  BLUE = too little.",
         "4.  The bars grow up (too much) or down (too little) from the target line in the middle.",
         "",
-        "RESPONSE: RMS window in seconds.  RANGE: dB shown above/below the target line.",
+        "RESPONSE: band RMS window in seconds.  RANGE: dB shown above/below the target line.",
+        "LOUDNESS: LUFS as Cubase (EBU R128). RMS RES + AES17: set these like Cubase's Meter Settings.",
         "FREEZE holds the readings.  RESET clears the RMS history.",
         "S (on each band) solos that band so you can hear it; solo several to combine them.",
         "MID / SIDE (top) lets you hear the mid or side signal on its own; works with the solos.",

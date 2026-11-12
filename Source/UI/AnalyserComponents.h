@@ -177,6 +177,31 @@ private:
 };
 
 //==============================================================================
+/** LUFS (momentary / short-term / integrated) and RMS readouts. */
+class LoudnessDisplay : public juce::Component,
+                        public juce::SettableTooltipClient
+{
+public:
+    struct Values
+    {
+        float momentary = -120.0f, shortTerm = -120.0f, integrated = -120.0f;
+        float rmsL = -120.0f, rmsR = -120.0f, rmsMax = -120.0f;
+        bool operator!= (const Values& o) const
+        {
+            return momentary != o.momentary || shortTerm != o.shortTerm || integrated != o.integrated
+                || rmsL != o.rmsL || rmsR != o.rmsR || rmsMax != o.rmsMax;
+        }
+    };
+
+    LoudnessDisplay();
+    void setValues (const Values&);
+    void paint (juce::Graphics&) override;
+
+private:
+    Values values;
+};
+
+//==============================================================================
 /** Round "?" button in the bottom bar. */
 class HelpButton : public juce::Button
 {

@@ -38,7 +38,8 @@ set(ANALYSER_SOURCES
     Source/PluginEditor.cpp
     Source/CustomLookAndFeel.cpp
     Source/UI/AnalyserComponents.cpp
-    Source/DSP/BandMeter.cpp)
+    Source/DSP/BandMeter.cpp
+    Source/DSP/LoudnessMeter.cpp)
 
 set(ANALYSER_DEFINITIONS
     JUCE_WEB_BROWSER=0

@@ -6,13 +6,13 @@
 #include "UI/AnalyserComponents.h"
 
 //==============================================================================
-/** The whole user interface, laid out at its base size (780 x 470). The editor
+/** The whole user interface, laid out at its base size (780 x 556). The editor
     below scales it to the window size. */
 class AnalyserPanel : public juce::Component,
                       private juce::Timer
 {
 public:
-    static constexpr int kBaseWidth = 780, kBaseHeight = 470;
+    static constexpr int kBaseWidth = 780, kBaseHeight = 556;
 
     explicit AnalyserPanel (AnalyserAudioProcessor&);
     ~AnalyserPanel() override;
@@ -35,6 +35,9 @@ private:
     VirusKnob trimKnob     { VirusKnob::Size::Large, "Trim" };
     VirusKnob responseKnob { VirusKnob::Size::Small, "Response" };
     VirusKnob rangeKnob    { VirusKnob::Size::Small, "Range" };
+    VirusKnob rmsResKnob   { VirusKnob::Size::Small, "RMS Res" };
+    juce::TextButton aes17Button { "AES17" };
+    LoudnessDisplay loudnessDisplay;
     juce::TextButton freezeButton { "Freeze" }, resetButton { "Reset" };
     std::array<juce::TextButton, an::kNumBands> soloButtons;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;
@@ -57,7 +60,7 @@ private:
 
     std::vector<std::unique_ptr<KnobAttachment>> knobAttachments;
 
-    juce::Rectangle<float> spectrumPanel, calPanel, displayPanel;
+    juce::Rectangle<float> spectrumPanel, calPanel, displayPanel, loudnessPanel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalyserPanel)
 };

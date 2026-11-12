@@ -12,6 +12,8 @@ namespace an
         inline constexpr const char* response = "response";  // RMS integration window, seconds
         inline constexpr const char* range    = "range";     // display range above/below the target line, dB
         inline constexpr const char* monitor  = "monitor";   // listen: 0 = stereo, 1 = mid, 2 = side (output only)
+        inline constexpr const char* rmsResolution = "rmsResolution";  // RMS window, ms (like Cubase's meter Resolution)
+        inline constexpr const char* aes17    = "aes17";     // RMS AES17 (+3 dB)
     }
 
     //==========================================================================

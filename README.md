@@ -27,6 +27,18 @@ several to combine), and **Mid** / **Side** (top bar) let you hear the mid or si
 Solo and Mid/Side only change what you hear: the meters always measure the full mix. Knobs move in 1.0 steps (drag or
 mouse wheel; Shift = 0.1, double-click = default). The window is resizable (70-250 %).
 
+## Loudness and RMS
+
+The **Loudness** panel meters the plugin's input before Trim, so it reads the same as your DAW's meter
+on that channel:
+
+* **Momentary / Short-Term / Integrated LUFS**: ITU-R BS.1770-4 / EBU R128, the standard Cubase's
+  loudness meter follows (K-weighting; 400 ms, 3 s, and gated integrated with -70 LUFS absolute and
+  -10 LU relative gates). Verified against the EBU Tech 3341 test cases.
+* **RMS L / R / Max**: unweighted RMS over the **RMS Res** window (1-1000 ms, default 300 ms).
+  **AES17** adds +3 dB. Set both to match Cubase's Meter Settings (Resolution, RMS AES17).
+* **Reset** clears Integrated and RMS Max.
+
 ## Download
 
 Every push to `main` builds the plugin on GitHub Actions. The zip is published to the
