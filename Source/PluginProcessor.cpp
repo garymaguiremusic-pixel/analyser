@@ -186,15 +186,15 @@ void AnalyserAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
 
     if (numChannels == 2 && (monitor != an::MonitorStereo || stereoGain.isSmoothing()))
     {
-        auto* l = buffer.getWritePointer (0);
-        auto* r = buffer.getWritePointer (1);
+        auto* outL = buffer.getWritePointer (0);
+        auto* outR = buffer.getWritePointer (1);
         for (int i = 0; i < numSamples; ++i)
         {
             const float gs = stereoGain.getNextValue(), gm = midGain.getNextValue(), gd = sideGain.getNextValue();
-            const float mid = 0.5f * (l[i] + r[i]), side = 0.5f * (l[i] - r[i]);
+            const float mid = 0.5f * (outL[i] + outR[i]), side = 0.5f * (outL[i] - outR[i]);
             const float common = gm * mid + gd * side;
-            l[i] = gs * l[i] + common;
-            r[i] = gs * r[i] + common;
+            outL[i] = gs * outL[i] + common;
+            outR[i] = gs * outR[i] + common;
         }
     }
     else
